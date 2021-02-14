@@ -48,8 +48,12 @@ R9DAC R9DAC;
 const uint8_t thisCommit[6] = {LATEST_COMMIT};
 
 //// CONSTANTS ////
-#define RX_CONNECTION_LOST_TIMEOUT 3000 // After 1500ms of no TLM response consider that slave has lost connection
-#define MSP_PACKET_SEND_INTERVAL 200
+#define RX_CONNECTION_LOST_TIMEOUT 3000LU // After 1500ms of no TLM response consider that slave has lost connection
+#define MSP_PACKET_SEND_INTERVAL 200LU
+
+#ifndef TLM_REPORT_INTERVAL_MS
+#define TLM_REPORT_INTERVAL_MS 320LU // Default to 320ms
+#endif
 
 /// define some libs to use ///
 hwTimer hwTimer;
@@ -73,7 +77,9 @@ mspPacket_t MSPPacket;
 ////////////SYNC PACKET/////////
 uint32_t SyncPacketLastSent = 0;
 
-uint32_t LastTLMpacketRecvMillis = 0;
+volatile uint32_t LastTLMpacketRecvMillis = 0;
+uint32_t TLMpacketReported = 0;
+
 LQCALC LQCALC;
 LPF LPD_DownlinkLQ(1);
 
@@ -160,9 +166,6 @@ void ICACHE_RAM_ATTR ProcessTLMpacket()
     crsf.LinkStatistics.rf_Mode = 4 - ExpressLRS_currAirRate_Modparams->index;
 
     crsf.TLMbattSensor.voltage = (Radio.RXdataBuffer[3] << 8) + Radio.RXdataBuffer[6];
-
-    crsf.sendLinkStatisticsToTX();
-    crsf.sendLinkBattSensorToTX();
   }
 }
 
@@ -285,7 +288,7 @@ void ICACHE_RAM_ATTR HandleFHSS()
   {
     return;
   }
-  
+
   uint8_t modresult = (NonceTX) % ExpressLRS_currAirRate_Modparams->FHSShopInterval;
 
   if (modresult == 0) // if it time to hop, do so.
@@ -521,7 +524,7 @@ void HandleUpdateParameter()
     break;
   }
   UpdateParamReq = false;
-  
+
   if (config.IsModified())
   {
     // Stop the timer during eeprom writes
@@ -565,7 +568,7 @@ void setup()
     Serial.setRx(PA3);
     Serial.begin(400000);
 #endif
-    
+
 
 #if defined(TARGET_R9M_TX)
     // Annoying startup beeps
@@ -668,6 +671,8 @@ void setup()
 
 void loop()
 {
+  uint32_t now = millis();
+
 #if defined(PLATFORM_ESP32)
   if (webUpdateMode)
   {
@@ -699,7 +704,7 @@ void loop()
 // Serial.println(crsf.OpenTXsyncOffset);
 #endif
 
-  if (millis() > (RX_CONNECTION_LOST_TIMEOUT + LastTLMpacketRecvMillis))
+  if (now > (uint32_t)(RX_CONNECTION_LOST_TIMEOUT + LastTLMpacketRecvMillis))
   {
     connectionState = disconnected;
     #if defined(TARGET_R9M_TX) || defined(TARGET_R9M_LITE_TX) || defined(TARGET_R9M_LITE_PRO_TX) || defined(TARGET_RX_GHOST_ATTO_V1)
@@ -735,6 +740,15 @@ void loop()
       ProcessMSPPacket(msp.getReceivedPacket());
       msp.markPacketReceived();
     }
+  }
+
+  /* Send TLM updates to handset if connected + reporting period
+   * is elapsed. This keeps handset happy dispite of the telemetry ratio */
+  if ((connectionState == connected) && (0 != LastTLMpacketRecvMillis) &&
+      (now < (uint32_t)(TLM_REPORT_INTERVAL_MS + TLMpacketReported))) {
+    crsf.sendLinkStatisticsToTX();
+    crsf.sendLinkBattSensorToTX();
+    TLMpacketReported = now;
   }
 }
 
