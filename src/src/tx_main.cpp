@@ -168,32 +168,21 @@ void ICACHE_RAM_ATTR ProcessTLMpacket()
   LastTLMpacketRecvMillis = millis();
   LQCALC.add();
 
-    switch(TLMheader & ELRS_TELEMETRY_TYPE_MASK)
-    {
-        case ELRS_TELEMETRY_TYPE_LINK:
-            crsf.LinkStatistics.uplink_RSSI_1 = Radio.RXdataBuffer[2];
-            crsf.LinkStatistics.uplink_RSSI_2 = 0;
-            crsf.LinkStatistics.uplink_SNR = Radio.RXdataBuffer[4];
-            crsf.LinkStatistics.uplink_Link_quality = Radio.RXdataBuffer[5];
+  if (TLMheader == CRSF_FRAMETYPE_LINK_STATISTICS)
+  {
+    crsf.LinkStatistics.uplink_RSSI_1 = Radio.RXdataBuffer[2];
+    crsf.LinkStatistics.uplink_RSSI_2 = 0;
+    crsf.LinkStatistics.uplink_SNR = Radio.RXdataBuffer[4];
+    crsf.LinkStatistics.uplink_Link_quality = Radio.RXdataBuffer[5];
 
-            crsf.LinkStatistics.downlink_SNR = int(Radio.LastPacketSNR * 10);
-            crsf.LinkStatistics.downlink_RSSI = 120 + Radio.LastPacketRSSI;
-            crsf.LinkStatistics.downlink_Link_quality = LPD_DownlinkLQ.update(LQCALC.getLQ()) + 1; // +1 fixes rounding issues with filter and makes it consistent with RX LQ Calculation
-            //crsf.LinkStatistics.downlink_Link_quality = Radio.currPWR;
-            crsf.LinkStatistics.rf_Mode = 4 - ExpressLRS_currAirRate_Modparams->index;
-            break;
+    crsf.LinkStatistics.downlink_SNR = int8_t(Radio.LastPacketSNR);
+    crsf.LinkStatistics.downlink_RSSI = 120 + Radio.LastPacketRSSI;
+    crsf.LinkStatistics.downlink_Link_quality = LPD_DownlinkLQ.update(LQCALC.getLQ()) + 1; // +1 fixes rounding issues with filter and makes it consistent with RX LQ Calculation
+    //crsf.LinkStatistics.downlink_Link_quality = Radio.currPWR;
+    crsf.LinkStatistics.rf_Mode = 4 - ExpressLRS_currAirRate_Modparams->index;
 
-        #ifdef ENABLE_TELEMETRY
-        case ELRS_TELEMETRY_TYPE_DATA:
-            TelemetryReceiver.ReceiveData(TLMheader >> ELRS_TELEMETRY_SHIFT, Radio.RXdataBuffer + 2);
-            if (TelemetryReceiver.HasFinishedData())
-            {
-                crsf.sendTelemetryToTX(CRSFinBuffer);
-                TelemetryReceiver.Unlock();
-            }
-            break;
-        #endif
-    }
+    crsf.TLMbattSensor.voltage = (Radio.RXdataBuffer[3] << 8) + Radio.RXdataBuffer[6];
+  }
 }
 
 void ICACHE_RAM_ATTR CheckChannels5to8Change()
@@ -822,8 +811,9 @@ void loop()
   /* Send TLM updates to handset if connected + reporting period
    * is elapsed. This keeps handset happy dispite of the telemetry ratio */
   if ((connectionState == connected) && (LastTLMpacketRecvMillis != 0) &&
-      (now >= (uint32_t)(TLM_REPORT_INTERVAL_MS + TLMpacketReported))) {
+      (now < (uint32_t)(TLM_REPORT_INTERVAL_MS + TLMpacketReported))) {
     crsf.sendLinkStatisticsToTX();
+    crsf.sendLinkBattSensorToTX();
     TLMpacketReported = now;
   }
 }
