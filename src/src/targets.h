@@ -225,8 +225,8 @@ https://github.com/jaxxzer
 #define BUFFER_OE_ACTIVE HIGH
 
 #elif defined(TARGET_R9M_LITE_PRO_TX)
-#define GPIO_PIN_RFamp_APC1           PA4  //2.7V
-#define GPIO_PIN_RFamp_APC2           PA5  //100mW@590mV, 200mW@870mV, 500mW@1.093V, 1W@1.493V
+//#define GPIO_PIN_RFamp_APC1           PA4  //2.7V
+//#define GPIO_PIN_RFamp_APC2           PA5  //100mW@590mV, 200mW@870mV, 500mW@1.093V, 1W@1.493V
 #define GPIO_PIN_RFswitch_CONTROL     PA6  // confirmed  //HIGH = RX, LOW = TX
 
 #define GPIO_PIN_NSS            PB12 // confirmed

@@ -12,7 +12,7 @@
 
 #if defined(TARGET_R9M_TX) || defined(TARGET_TX_ES915TX)
 #ifdef UNLOCK_HIGHER_POWER
-#define MaxPower PWR_1000mW
+#define MaxPower 6
 #else
 #define MaxPower PWR_250mW
 #endif
