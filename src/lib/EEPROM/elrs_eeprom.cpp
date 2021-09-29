@@ -13,6 +13,8 @@
         #include <Wire.h>
         #include <extEEPROM.h>
         extEEPROM EEPROM(kbits_2, 1, 1, TARGET_EEPROM_ADDR);
+    #elif TARGET_TX_FUBARINO
+    
     #else
         #define STM32_USE_FLASH 1
         #include <stm32_eeprom.h>
@@ -40,8 +42,8 @@ ELRS_EEPROM::Begin()
             /* Initialize I2C */
         // Wire.setSDA(GPIO_PIN_SDA);
         // Wire.setSCL(GPIO_PIN_SCL);// need to adjust this to begin with maybe the i2c buys address
-        Wire.begin();
-        EEPROM.begin(); // Come back to this to see how EEPROM is working on pic32
+        //Wire.begin();
+        //EEPROM.begin(); // Come back to this to see how EEPROM is working on pic32
     #else
         EEPROM.begin(RESERVED_EEPROM_SIZE);
     #endif
